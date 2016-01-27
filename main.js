@@ -95,11 +95,32 @@ function extractProperty(property) {
         });
     } else if (key === "when") {
         // TODO : extract boolean expression
-        var condition = property.value.body[0].value;
-        return condition.left.property + " " + condition.operator + " " + condition.right.value;
+        return extractBooleanCondition(property.value.body[0].value);
     } else {
         return {};
     }
+}
+
+function extractBooleanCondition(condition) {
+
+
+
+
+    if (condition instanceof UglifyJS.AST_Dot) {
+        return condition.property;
+    } else if (condition instanceof UglifyJS.AST_Undefined) {
+        return "undefined";
+    } else if (condition instanceof UglifyJS.AST_String) {
+        return condition.value;
+    } else if (condition instanceof UglifyJS.AST_Symbol) {
+        return condition.name;
+    } else if (condition instanceof UglifyJS.AST_Binary) {
+        return "(" + extractBooleanCondition(condition.left) + " " + condition.operator + " " + extractBooleanCondition(condition.right) + ")";
+    } else {
+        // Type not supported
+        return "";
+    }
+
 }
 
 fs.writeFile("output/features.json", JSON.stringify(prompts, null, 4), function(err) {
