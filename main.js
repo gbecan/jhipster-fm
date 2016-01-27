@@ -50,24 +50,56 @@ var prompts = prompting.properties.map(function(prompt) {
 
 
             }
+        } else if (node instanceof  UglifyJS.AST_Call) {
+            if (node.expression.print_to_string() === "this.prompt") {
+
+                node.args.forEach(function(arg) {
+
+                    if (arg instanceof UglifyJS.AST_Object) {
+                        var promptData = {};
+                        arg.properties.forEach(function(property) {
+                            promptData[property.key] = extractProperty(property);
+                        });
+                        extractedData.prompts.push(promptData);
+                    }
+
+                });
+
+            }
+
         }
 
 
 
     });
 
-    prompt.value.walk(promptsWalker);
+    prompt.value.walk(promptsWalker);JSON.stringify(prompts);
 
     return extractedData;
 });
 
 function extractProperty(property) {
     var key = property.key;
-    if (key === "type" || key === "name") {
+    if (key === "type" || key === "name" || key === "default") {
         return property.value.value;
-    }
+    } else if (key === "message") {
+        return property.value.print_to_string();
+    } else if (key === "choices" && typeof property.value.elements !== 'undefined') {
 
-    return {};
+        return property.value.elements.map(function(elem) {
+            var choices = {};
+            elem.properties.forEach(function(choice) {
+                choices[choice.key] = choice.value.value;
+            });
+            return choices;
+        });
+    } else if (key === "when") {
+        // TODO : extract boolean expression
+        var condition = property.value.body[0].value;
+        return condition.left.property + " " + condition.operator + " " + condition.right.value;
+    } else {
+        return {};
+    }
 }
 
 fs.writeFile("output/features.json", JSON.stringify(prompts, null, 4), function(err) {
